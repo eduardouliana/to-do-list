@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	firestore "cloud.google.com/go/firestore"
@@ -84,6 +83,7 @@ func deleteAll(repository *database.TaskRepository, r *http.Request) interface{}
 func MainFunction(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 	opt := option.WithCredentialsFile("/workspace/serverless_function_source_code/serviceAccountKey.json")
+	//opt := option.WithCredentialsFile("serviceAccountKey.json")
 	client, err := firestore.NewClient(ctx, "to-do-list-96be7", opt)
 	if err != nil {
 		panic(fmt.Sprintf("firestore error:%s", err))
@@ -92,22 +92,63 @@ func MainFunction(w http.ResponseWriter, r *http.Request) {
 
 	repository := database.NewTaskRepository(client)
 
-	output := save(repository, r)
+	query := r.URL.Query()
+	operation := query.Get("operation")
 
-	output = getOne(repository, r)
+	switch operation {
+	case "save":
+		output := save(repository, r)
+		outputJson, err := json.Marshal(output)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprint(w, string(outputJson))
 
-	output = getAll(repository, r)
+	case "read":
+		output := getOne(repository, r)
+		outputJson, err := json.Marshal(output)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprint(w, string(outputJson))
 
-	output = deleteOne(repository, r)
+	case "readAll":
+		output := getAll(repository, r)
+		outputJson, err := json.Marshal(output)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprint(w, string(outputJson))
 
-	output = deleteAll(repository, r)
+	case "delete":
+		output := deleteOne(repository, r)
+		outputJson, err := json.Marshal(output)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprint(w, string(outputJson))
 
-	outputJson, err := json.Marshal(output)
+	case "deleteAll":
+		output := deleteAll(repository, r)
+		outputJson, err := json.Marshal(output)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Fprint(w, string(outputJson))
+
+	default:
+		fmt.Fprintf(w, "Parâmetro não encontrado: %s", operation)
+	}
+}
+
+/*
+// - Only for test
+func main() {
+	http.HandleFunc("/", MainFunction)
+
+	err := http.ListenAndServe(":3333", nil)
+
 	if err != nil {
 		panic(err)
 	}
-
-	fmt.Fprint(w, outputJson)
-
-	log.Printf("Output: %v", output)
-}
+}*/
